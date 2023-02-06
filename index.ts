@@ -10,12 +10,12 @@ function subdomainhandler(sub: SubDomainRouter,request: any, response: any, next
         } else {
             if(sub.staticAssets) {
                 sub.staticAssets(request, response, next);
+            } else {
+                next();
             }
         }
         
     } 
-
-    next();
 
 }
 
@@ -107,8 +107,6 @@ export default class SubDomainRouter {
 
                 
             }
-
-            console.log(builded_path.join("/"), route.path);
 
             return builded_path.join("/") == route.path && route.method == request.method.toLowerCase();
 
