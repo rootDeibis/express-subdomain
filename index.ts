@@ -1,30 +1,15 @@
-import express, { Request } from "express";
+import express, { Request, Response } from "express";
 
-function subdomainhandler(sub: SubDomainRouter,request: any, response: any, next: any) {
-
-    if(sub.is(request)) {
-        const route = sub.routes.find(() => sub.isRoute(request));
-
-        if(route) {
-            route.handle(request, response, next);
-        } else {
-            if(sub.staticAssets) {
-                sub.staticAssets(request, response, next);
-            } else {
-                next();
-            }
-        }
-        
-    } 
-
+if(!('express_routes_subdomain' in process)) {
+    (process as any)['express_routes_subdomain'] = [];
 }
 
 
 export default class SubDomainRouter {
 
-    public subdomain: string
-    public routes: Array<{path: string, method: string, handle: any}>
-    public staticAssets: any
+    private subdomain: string
+    private routes: Array<{path: string, method: string, handle: any}>
+    private staticAssets: any
     private router: express.Router
 
     constructor(subdomain: string, app: express.Application) {
@@ -32,19 +17,32 @@ export default class SubDomainRouter {
         this.routes = [];
         this.router = express.Router();
 
-        if(!('express_routes_subdomain' in process)) {
-            (process as any)['express_routes_subdomain'] = [];
-        }
-
         
-        this.router.use((req, res, next) =>{ 
-            subdomainhandler( (process as any)['express_routes_subdomain'].find((r: SubDomainRouter) => r.is(req)), req, res, next)
-        })
+        this.router.use((req, res, next) => this.handle(req, res, next));
         app.use(this.router);
         
 
         (process as any)['express_routes_subdomain'].push(this);
        
+    }
+
+    private handle(req: Request, res: Response, next: any) {
+        if(this.is(req)) {
+            const route = this.routes.find(() => this.isRoute(req));
+            if(route) {
+                route.handle(req, res)
+            } else {
+                if(this.staticAssets) {
+                    this.staticAssets(req, res, next);
+                } 
+
+               
+            }
+        } else if(SubDomainRouter.isUknownSubdomain(req)) {
+            
+        }
+
+        next();
     }
 
 
@@ -64,12 +62,32 @@ export default class SubDomainRouter {
         this.route("post", path, handle);
     }
 
+    put(path: string,handle: (request: express.Request, respose: express.Response) => void) {
+        this.route("put", path, handle);
+    }
+
+    delete(path: string,handle: (request: express.Request, respose: express.Response) => void) {
+        this.route("delete", path, handle);
+    }
+
     static(path: string) {
         this.staticAssets = express.static(path);
 
     }
 
-    is(req: Request) {
+    public static isUknownSubdomain(req: Request) {
+        const { host } = req.headers;
+
+        if(host) {
+            const subdomain = host.substring(0, host.indexOf("."));
+
+            console.log(subdomain);
+
+            return subdomain != "";
+        }
+    }
+
+    private is(req: Request) {
         const { host } = req.headers;
 
         if(host) {
@@ -81,7 +99,7 @@ export default class SubDomainRouter {
         return false;
     }
 
-    isRoute(request: express.Request): boolean {
+    private isRoute(request: express.Request): boolean {
         return this.routes.find(route => {
             const paths = route.path.split("/");
             const $paths = request.path.split("/");
