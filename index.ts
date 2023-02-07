@@ -27,7 +27,7 @@ export default class SubDomainRouter {
     }
 
     private handle(req: Request, res: Response, next: any) {
-        if(this.is(req)) {
+        if(this.isSubdomain(req)) {
             const route = this.routes.find(() => this.isRoute(req));
             if(route) {
                 route.handle(req, res)
@@ -76,27 +76,11 @@ export default class SubDomainRouter {
     }
 
     public static isUknownSubdomain(req: Request) {
-        const { host } = req.headers;
-
-        if(host) {
-            const subdomain = host.substring(0, host.indexOf("."));
-
-            console.log(subdomain);
-
-            return subdomain != "";
-        }
+        return req.headers.host && req.headers.host.substring(0, req.headers.host.indexOf(".")) != "";
     }
 
-    private is(req: Request) {
-        const { host } = req.headers;
-
-        if(host) {
-            const subdomain = host.substring(0, host.indexOf("."));
-
-            return subdomain == this.subdomain;
-        }
-
-        return false;
+    private isSubdomain(req: Request) {
+        return req.headers.host && req.headers.host.substring(0, req.headers.host.indexOf(".")) === this.subdomain;
     }
 
     private isRoute(request: express.Request): boolean {
